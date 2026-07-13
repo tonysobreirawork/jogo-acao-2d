@@ -393,7 +393,7 @@
       this.hitFlash = .18;
       this.vx = this.x + this.w / 2 < sx ? -310 : 310;
       this.vy = -280;
-      damageTexts.push({ x: this.x + this.w / 2, y: this.y, text: `-${Math.round(amount)}`, color: '#ff6878', life: .8 });
+      damageTexts.push({ x: this.x + this.w / 2, y: this.y, text: `-${Math.round(amount)}`, color: '#ff6878', life: .8, size: 20 });
       camera.shake = Math.max(camera.shake, 9);
       spawnBurst(this.x + this.w / 2, this.y + this.h / 2, '#ff6172', 16, 220);
       beep('hit', .15);
@@ -623,7 +623,7 @@
       this.hp -= amount;
       this.hitFlash = .12;
       this.lastHitBy = projectile;
-      damageTexts.push({ x: this.x + this.w/2, y: this.y, text: `${critical ? 'CRIT ' : ''}${Math.round(amount)}`, color: color || (critical ? '#ffdc6b' : '#ffffff'), life: .65 });
+      damageTexts.push({ x: this.x + this.w/2, y: this.y, text: `${critical ? 'CRIT ' : ''}-${Math.round(amount)}`, color: color || (critical ? '#ffdc6b' : '#ffffff'), life: .65, size: critical ? 18 : 16 });
       spawnBurst(this.x + this.w/2, this.y + this.h/2, color || '#ffffff', critical ? 10 : 5, critical ? 170 : 90);
       if (this.hp <= 0) this.die();
     }
@@ -704,11 +704,13 @@
       }
       ctx.restore();
 
-      if (!this.boss) {
-        const ratio = clamp(this.hp / this.maxHp, 0, 1);
-        ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(this.x, this.y - 10, this.w, 5);
-        ctx.fillStyle = this.elite ? '#ce75ff' : '#ff6e78'; ctx.fillRect(this.x, this.y - 10, this.w * ratio, 5);
-      }
+      const ratio = clamp(this.hp / this.maxHp, 0, 1);
+      const barW = this.boss ? Math.max(this.w, 130) : this.w;
+      const barX = this.x + this.w / 2 - barW / 2;
+      const barY = this.y - (this.boss ? 18 : 10);
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(barX, barY, barW, 6);
+      ctx.fillStyle = this.boss ? '#f59e0b' : this.elite ? '#ce75ff' : '#ff6e78'; ctx.fillRect(barX, barY, barW * ratio, 6);
+      ctx.strokeStyle = 'rgba(255,255,255,.32)'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, 6);
       if (this.poison > 0) { ctx.fillStyle = '#9cff66'; ctx.fillText('☠', this.x - 3, this.y + 10); }
       if (this.slow > 0) { ctx.fillStyle = '#bcefff'; ctx.fillText('❄', this.x + this.w - 8, this.y + 10); }
     }
@@ -1168,7 +1170,7 @@
     run.player.draw();
     drawDrones(run.player);
     particles.forEach(p=>{ctx.globalAlpha=clamp(p.life/p.maxLife,0,1);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);});ctx.globalAlpha=1;
-    damageTexts.forEach(t=>{ctx.globalAlpha=clamp(t.life/.3,0,1);ctx.fillStyle=t.color;ctx.font='800 16px system-ui';ctx.textAlign='center';ctx.fillText(t.text,t.x,t.y);});ctx.globalAlpha=1;ctx.textAlign='left';
+    damageTexts.forEach(t=>{ctx.globalAlpha=clamp(t.life/.3,0,1);ctx.fillStyle=t.color;ctx.font=`900 ${t.size || 16}px system-ui`;ctx.textAlign='center';ctx.fillText(t.text,t.x,t.y);});ctx.globalAlpha=1;ctx.textAlign='left';
     ctx.restore();
   }
 
