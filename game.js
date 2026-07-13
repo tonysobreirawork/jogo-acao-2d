@@ -134,8 +134,7 @@
     { id: 'shield', name: 'Escudo', icon: '🛡️', desc: '+40 de escudo permanente nesta partida.', tags: ['Defesa'], weight: 8, apply: p => { p.maxShield += 40; p.shield += 40; } },
     { id: 'revive', name: 'Reviver', icon: '🕯️', desc: 'Ganha uma revivescência com 50% de vida.', tags: ['Defesa'], weight: 4, apply: p => p.revives += 1 },
     { id: 'fanShot', name: 'Disparo em Leque', icon: '🪭', desc: 'Abre mais o ângulo dos disparos múltiplos.', tags: ['Projétil'], weight: 6, apply: p => { p.extraProjectiles += 2; p.spread += .16; } },
-    { id: 'circleShot', name: 'Tiro Circular', icon: '⭕', desc: 'Dispara uma rajada circular junto ao tiro principal.', tags: ['Área'], weight: 5, apply: p => p.circularShot += 1 },
-    { id: 'doubleJump', name: 'Pulo Duplo', icon: '🪽', desc: 'Habilidade comum: concede salto duplo.', tags: ['Movimento'], weight: 8, unique: true, apply: p => p.maxJumps = Math.max(p.maxJumps, 2) }
+    { id: 'circleShot', name: 'Tiro Circular', icon: '⭕', desc: 'Dispara uma rajada circular junto ao tiro principal.', tags: ['Área'], weight: 5, apply: p => p.circularShot += 1 }
   ];
 
   const ROOM_BONUS_POOL = [
@@ -227,7 +226,7 @@
       this.grounded = false;
       this.facing = 1;
       this.jumpCount = 0;
-      this.maxJumps = 1;
+      this.maxJumps = 2;
       this.jumpHeld = false;
       this.jumpHoldTimer = 0;
       this.maxJumpHold = .18;
@@ -1051,7 +1050,6 @@
   function isBonusAvailable(bonus) {
     if (!bonus.unique) return true;
     if (run.bonuses.some(x => x.id === bonus.id)) return false;
-    if (bonus.id === 'doubleJump' && run.player.maxJumps >= 2) return false;
     return true;
   }
 
