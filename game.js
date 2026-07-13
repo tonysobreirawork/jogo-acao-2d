@@ -47,19 +47,19 @@
     ranger: {
       id: 'ranger', name: 'Vega', icon: '🧭', cost: 0,
       description: 'Equilibrada, ágil e especialista em reposicionamento.',
-      maxHp: 110, speed: 330, jump: 650, damage: 1, attackSpeed: 1,
+      maxHp: 110, speed: 330, jump: 780, damage: 1, attackSpeed: 1,
       special: 'Esquiva reduz brevemente o tempo entre disparos.'
     },
     titan: {
       id: 'titan', name: 'Brutus', icon: '🛡️', cost: 400,
       description: 'Muita vida e proteção, mas movimentação mais pesada.',
-      maxHp: 165, speed: 270, jump: 600, damage: 1.12, attackSpeed: 0.88,
+      maxHp: 165, speed: 270, jump: 730, damage: 1.12, attackSpeed: 0.88,
       special: 'Recebe um escudo ao entrar em cada sala.'
     },
     nova: {
       id: 'nova', name: 'Nyx', icon: '⚡', cost: 650,
       description: 'Canhão de vidro veloz com grande potencial crítico.',
-      maxHp: 82, speed: 370, jump: 685, damage: 1.18, attackSpeed: 1.15,
+      maxHp: 82, speed: 370, jump: 820, damage: 1.18, attackSpeed: 1.15,
       special: 'Críticos reduzem o tempo de recarga da esquiva.'
     }
   };
@@ -382,17 +382,28 @@
       ctx.scale(this.facing, 1);
       if (this.hitFlash > 0) ctx.filter = 'brightness(2.2)';
 
-      ctx.fillStyle = this.character.id === 'titan' ? '#f7c85b' : this.character.id === 'nova' ? '#b783ff' : '#61efcf';
-      roundRect(ctx, -18, -25, 36, 45, 10, true);
-      ctx.fillStyle = '#132235';
-      roundRect(ctx, -15, -22, 30, 18, 7, true);
+      const suit = this.character.id === 'titan' ? '#f7c85b' : this.character.id === 'nova' ? '#b783ff' : '#61efcf';
+      const trim = this.character.id === 'titan' ? '#7a5420' : this.character.id === 'nova' ? '#44306d' : '#126b64';
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.beginPath(); ctx.ellipse(0, 33, 24, 7, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = trim;
+      roundRect(ctx, -16, -9, 32, 35, 9, true);
+      ctx.fillStyle = suit;
+      roundRect(ctx, -18, -27, 36, 39, 12, true);
+      ctx.fillStyle = '#0f1b2e';
+      roundRect(ctx, -15, -23, 30, 18, 8, true);
       ctx.fillStyle = '#d9ffff';
-      ctx.fillRect(3, -17, 9, 4);
-      ctx.fillStyle = '#263a54';
-      roundRect(ctx, -14, 19, 11, 16, 4, true);
-      roundRect(ctx, 3, 19, 11, 16, 4, true);
-      ctx.fillStyle = '#dfeaf4';
-      roundRect(ctx, 12, -3, 28, 8, 3, true);
+      roundRect(ctx, 1, -18, 12, 5, 3, true);
+      ctx.fillStyle = '#24344d';
+      roundRect(ctx, -17, -6, 9, 24, 4, true);
+      roundRect(ctx, 8, -6, 9, 24, 4, true);
+      ctx.fillStyle = '#1b2c44';
+      roundRect(ctx, -14, 18, 10, 18, 4, true);
+      roundRect(ctx, 4, 18, 10, 18, 4, true);
+      ctx.fillStyle = '#e8f4ff';
+      roundRect(ctx, 12, -5, 30, 8, 4, true);
+      ctx.fillStyle = '#6fffe2';
+      ctx.fillRect(34, -3, 5, 4);
       ctx.restore();
 
       if (this.lastTarget) {
@@ -590,6 +601,7 @@
       spawnBurst(c.x, c.y, '#ff7a3c', 30, 280);
       this.dead = true;
       this.hp = 0;
+      if (enemies.length && enemies.every(e => e.dead)) clearEnemyAttacks();
     }
 
     die() {
@@ -605,6 +617,7 @@
       if (run.player.toxicBurst && this.poison > 0) {
         enemies.forEach(e => { if (!e.dead && e !== this && dist(e.center, c) < 150) e.poison += run.player.toxicBurst; });
       }
+      if (enemies.length && enemies.every(e => e.dead)) clearEnemyAttacks();
       if (this.boss) {
         beep('win', .22);
         setTimeout(() => endRun(true), 900);
@@ -622,16 +635,33 @@
       ctx.translate(c.x, c.y);
       if (this.hitFlash > 0) ctx.filter = 'brightness(2.5)';
       const color = this.boss ? '#ffba55' : this.elite ? '#d27cff' : this.type === 'flyer' ? '#ff8e6d' : this.type === 'shooter' ? '#70b7ff' : this.type === 'bomber' ? '#ff596d' : '#f1f5f9';
+      ctx.fillStyle = 'rgba(0,0,0,.24)';
+      ctx.beginPath(); ctx.ellipse(0, this.h*.45, this.w*.45, 7, 0, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = color;
       if (this.type === 'flyer') {
-        ctx.beginPath(); ctx.moveTo(-21, 0); ctx.lineTo(0, -18); ctx.lineTo(21, 0); ctx.lineTo(0, 17); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-25, 4); ctx.quadraticCurveTo(-8, -28, 0, -5); ctx.quadraticCurveTo(8, -28, 25, 4); ctx.lineTo(0, 20); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#351927';
+        ctx.beginPath(); ctx.arc(0, 1, 13, 0, Math.PI*2); ctx.fill();
       } else {
         roundRect(ctx, -this.w/2, -this.h/2, this.w, this.h, this.boss ? 22 : 10, true);
+        ctx.fillStyle = this.type === 'bomber' ? '#641f2c' : this.type === 'shooter' ? '#183b61' : '#26344b';
+        roundRect(ctx, -this.w*.38, -this.h*.38, this.w*.76, this.h*.2, 8, true);
+        if (this.type === 'jumper') {
+          ctx.fillStyle = '#93ffd7';
+          roundRect(ctx, -this.w*.38, this.h*.28, 12, 16, 5, true);
+          roundRect(ctx, this.w*.13, this.h*.28, 12, 16, 5, true);
+        }
       }
       ctx.fillStyle = '#142033';
       roundRect(ctx, -this.w*.28, -this.h*.18, this.w*.56, this.h*.28, 5, true);
       ctx.fillStyle = '#ffef9a';
       ctx.fillRect(this.w*.06, -this.h*.1, this.w*.14, 4);
+      ctx.fillStyle = '#ff6b78';
+      ctx.fillRect(-this.w*.2, -this.h*.1, this.w*.14, 4);
+      if (this.type === 'shooter') {
+        ctx.fillStyle = '#dbeafe';
+        roundRect(ctx, this.w*.18, -2, this.w*.42, 8, 4, true);
+      }
       if (this.telegraph > 0) {
         ctx.strokeStyle = '#ff495b'; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.arc(0, 0, this.w*.75 + (1-this.telegraph)*20, 0, Math.PI*2); ctx.stroke();
@@ -734,6 +764,11 @@
     }
   }
 
+  function clearEnemyAttacks() {
+    enemyProjectiles = [];
+    hazards = hazards.filter(h => h.type !== 'firePillar' && h.type !== 'sandSpike');
+  }
+
   function fireEnemyProjectile(from, to, damage, speed, spreadCount = 1) {
     const base = Math.atan2(to.y-from.y, to.x-from.x);
     for (let i=0; i<spreadCount; i++) {
@@ -831,7 +866,7 @@
     const world = WORLDS[selectedWorld];
     run = {
       player: new Player(character,weapon), world,
-      room:0,totalRooms:5,roomsCleared:0,coins:0,score:0,bonuses:[],roomClearTimer:0,
+      room:0,totalRooms:8,roomsCleared:0,coins:0,score:0,bonuses:[],roomClearTimer:0,awaitingDoor:false,
       startedAt:performance.now(), ended:false
     };
     camera={x:0,y:0,shake:0}; particles=[]; damageTexts=[]; droneTimers.clear();
@@ -842,6 +877,7 @@
 
   function roomCleared() {
     if (run.roomClearTimer > 0 || run.ended) return;
+    clearEnemyAttacks();
     run.roomClearTimer = 1.1;
     run.roomsCleared++;
     run.score += 350 + run.room*120;
@@ -852,7 +888,7 @@
   function presentBonuses() {
     gameState='bonus';
     const choices=[];
-    const available = BONUS_POOL.filter(b=>!b.unique || !run.bonuses.some(x=>x.id===b.id));
+    const available = BONUS_POOL.filter(isBonusAvailable);
     while(choices.length<3 && available.length) {
       const weighted=[];
       available.forEach(b=>{for(let i=0;i<b.weight;i++) weighted.push(b);});
@@ -870,10 +906,19 @@
   }
 
   function chooseBonus(bonus) {
+    if (!isBonusAvailable(bonus)) return;
     bonus.apply(run.player); run.bonuses.push(bonus);
     updateBuildPanel(); hideScreens(); gameState='playing';
-    run.room++; run.roomClearTimer=0; spawnRoomEnemies();
+    run.roomClearTimer=0; run.awaitingDoor=true;
+    toast('PORTA ABERTA À DIREITA');
     beep('select',.12);
+  }
+
+  function isBonusAvailable(bonus) {
+    if (!bonus.unique) return true;
+    if (run.bonuses.some(x => x.id === bonus.id)) return false;
+    if (bonus.id === 'doubleJump' && run.player.maxJumps >= 2) return false;
+    return true;
   }
 
   function endRun(victory) {
@@ -920,8 +965,9 @@
     particles=particles.filter(p=>p.life>0);
     damageTexts.forEach(t=>{t.life-=dt;t.y-=36*dt;}); damageTexts=damageTexts.filter(t=>t.life>0);
 
-    if(enemies.length && enemies.every(e=>e.dead) && run.room < run.totalRooms-1) roomCleared();
+    if(enemies.length && enemies.every(e=>e.dead) && run.room < run.totalRooms-1 && !run.awaitingDoor) roomCleared();
     if(run.roomClearTimer>0) {run.roomClearTimer-=dt;if(run.roomClearTimer<=0) presentBonuses();}
+    if(run.awaitingDoor && playerAtExitDoor()) advanceRoom();
     camera.x=lerp(camera.x,0,.08); camera.y=lerp(camera.y,0,.08); camera.shake*=Math.pow(.03,dt);
     updateHud();
   }
@@ -950,14 +996,27 @@
     });
   }
 
+  function exitDoorRect() { return {x:W-46,y:H-190,w:38,h:120}; }
+
+  function playerAtExitDoor() {
+    return run?.awaitingDoor && rectsOverlap(run.player, exitDoorRect());
+  }
+
+  function advanceRoom() {
+    run.awaitingDoor=false;
+    run.room++;
+    spawnRoomEnemies();
+  }
+
   function drawDoors(){
-    const locked = enemies.some(e=>!e.dead) || run.roomClearTimer>0;
-    const doors=[{x:8,y:H-190,w:38,h:120},{x:W-46,y:H-190,w:38,h:120}];
+    const blocked = enemies.some(e=>!e.dead) || run.roomClearTimer>0;
+    const doors=[{x:8,y:H-190,w:38,h:120,exit:false},{...exitDoorRect(),exit:true}];
     for(const d of doors){
+      const locked = blocked || !d.exit || !run.awaitingDoor;
       ctx.fillStyle=locked?'#421d2b':'#164b43';
       roundRect(ctx,d.x,d.y,d.w,d.h,7,true);
       ctx.strokeStyle=locked?'#ff6b78':'#67f3d4';ctx.lineWidth=3;roundRect(ctx,d.x,d.y,d.w,d.h,7,false,true);
-      ctx.fillStyle=locked?'#ffbd69':'#79ffe2';ctx.font='700 20px system-ui';ctx.textAlign='center';ctx.fillText(locked?'🔒':'✓',d.x+d.w/2,d.y+67);ctx.textAlign='left';
+      ctx.fillStyle=locked?'#ffbd69':'#79ffe2';ctx.font='700 20px system-ui';ctx.textAlign='center';ctx.fillText(locked?'🔒':'➜',d.x+d.w/2,d.y+67);ctx.textAlign='left';
     }
   }
 
