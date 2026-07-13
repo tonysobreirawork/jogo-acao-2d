@@ -601,6 +601,7 @@
       spawnBurst(c.x, c.y, '#ff7a3c', 30, 280);
       this.dead = true;
       this.hp = 0;
+      if (enemies.length && enemies.every(e => e.dead)) clearEnemyAttacks();
     }
 
     die() {
@@ -616,6 +617,7 @@
       if (run.player.toxicBurst && this.poison > 0) {
         enemies.forEach(e => { if (!e.dead && e !== this && dist(e.center, c) < 150) e.poison += run.player.toxicBurst; });
       }
+      if (enemies.length && enemies.every(e => e.dead)) clearEnemyAttacks();
       if (this.boss) {
         beep('win', .22);
         setTimeout(() => endRun(true), 900);
@@ -762,6 +764,11 @@
     }
   }
 
+  function clearEnemyAttacks() {
+    enemyProjectiles = [];
+    hazards = hazards.filter(h => h.type !== 'firePillar' && h.type !== 'sandSpike');
+  }
+
   function fireEnemyProjectile(from, to, damage, speed, spreadCount = 1) {
     const base = Math.atan2(to.y-from.y, to.x-from.x);
     for (let i=0; i<spreadCount; i++) {
@@ -870,6 +877,7 @@
 
   function roomCleared() {
     if (run.roomClearTimer > 0 || run.ended) return;
+    clearEnemyAttacks();
     run.roomClearTimer = 1.1;
     run.roomsCleared++;
     run.score += 350 + run.room*120;
@@ -880,7 +888,7 @@
   function presentBonuses() {
     gameState='bonus';
     const choices=[];
-    const available = BONUS_POOL.filter(b=>!b.unique || !run.bonuses.some(x=>x.id===b.id));
+    const available = BONUS_POOL.filter(isBonusAvailable);
     while(choices.length<3 && available.length) {
       const weighted=[];
       available.forEach(b=>{for(let i=0;i<b.weight;i++) weighted.push(b);});
@@ -898,11 +906,19 @@
   }
 
   function chooseBonus(bonus) {
+    if (!isBonusAvailable(bonus)) return;
     bonus.apply(run.player); run.bonuses.push(bonus);
     updateBuildPanel(); hideScreens(); gameState='playing';
     run.roomClearTimer=0; run.awaitingDoor=true;
     toast('PORTA ABERTA À DIREITA');
     beep('select',.12);
+  }
+
+  function isBonusAvailable(bonus) {
+    if (!bonus.unique) return true;
+    if (run.bonuses.some(x => x.id === bonus.id)) return false;
+    if (bonus.id === 'doubleJump' && run.player.maxJumps >= 2) return false;
+    return true;
   }
 
   function endRun(victory) {
