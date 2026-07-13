@@ -158,6 +158,7 @@
   let damageTexts = [];
   let platforms = [];
   let roomDecor = [];
+  let rewardStatue = null;
   let audioCtx = null;
   let toastTimer = null;
 
@@ -671,7 +672,7 @@
         enemies.forEach(e => { if (!e.dead && e !== this && dist(e.center, c) < 150) e.poison += run.player.toxicBurst; });
       }
       if (enemies.length && enemies.every(e => e.dead)) clearEnemyAttacks();
-      if (this.subBoss) gainXp(260);
+      if (this.subBoss) gainXp(700);
       if (this.boss && !this.subBoss) {
         beep('win', .22);
         setTimeout(() => endRun(true), 900);
@@ -920,6 +921,7 @@
 
   function spawnRoomEnemies() {
     enemies = []; projectiles = []; enemyProjectiles = [];
+    rewardStatue = null;
     const bossRoom = run.room === run.totalRooms - 1;
     const subBossRoom = run.room === 14;
     const rewardRoom = run.room === 9 || run.room === 19;
@@ -929,7 +931,7 @@
 
     if (rewardRoom) {
       $('bossHud').classList.add('hidden');
-      setTimeout(() => presentRoomBonus(), 250);
+      rewardStatue = { x: W / 2 - 42, y: H - 70 - 112, w: 84, h: 112 };
     } else if (bossRoom) {
       enemies.push(new Enemy('boss', 990, 400, false, true));
       $('bossHud').classList.remove('hidden');
@@ -952,7 +954,7 @@
       }
     }
     updateRoomProgress();
-    toast(bossRoom ? 'CHEFE DA FRONTEIRA' : subBossRoom ? 'SUB BOSS' : rewardRoom ? `SALA ${run.room+1}: ESCOLHA UM BÔNUS` : `SALA ${run.room+1}: PORTAS BLOQUEADAS`);
+    toast(bossRoom ? 'CHEFE DA FRONTEIRA' : subBossRoom ? 'SUB BOSS' : rewardRoom ? `SALA ${run.room+1}: TOQUE A ESTÁTUA` : `SALA ${run.room+1}: PORTAS BLOQUEADAS`);
   }
 
   function beginRun() {
@@ -978,7 +980,7 @@
     run.roomsCleared++;
     run.score += 350 + run.room*120;
     run.player.hp = Math.min(run.player.maxHp, run.player.hp + save.upgrades.recovery*2);
-    gainXp(42 + run.room * 8);
+    gainXp(110 + run.room * 18);
     toast('SALA LIMPA');
   }
 
@@ -1014,6 +1016,7 @@
 
   function presentRoomBonus() {
     if (!run || run.ended || gameState !== 'playing') return;
+    rewardStatue = null;
     gameState='bonus';
     $('bonusChoices').innerHTML='';
     ROOM_BONUS_POOL.forEach(b=>{
@@ -1027,6 +1030,7 @@
 
   function chooseRoomBonus(bonus) {
     bonus.apply(run.player); run.bonuses.push(bonus);
+    rewardStatue = null;
     updateBuildPanel(); hideScreens(); gameState='playing';
     openExitDoor();
     beep('select',.12);
@@ -1105,6 +1109,7 @@
         else openExitDoor();
       }
     }
+    if(rewardStatue && rectsOverlap(run.player, rewardStatue)) presentRoomBonus();
     if(run.awaitingDoor && playerAtExitDoor()) advanceRoom();
     camera.x=lerp(camera.x,0,.08); camera.y=lerp(camera.y,0,.08); camera.shake*=Math.pow(.03,dt);
     updateHud();
@@ -1132,6 +1137,32 @@
       ctx.fillStyle=world.platform;roundRect(ctx,p.x,p.y,p.w,p.h,6,true);
       ctx.fillStyle=world.edge;ctx.globalAlpha=.8;ctx.fillRect(p.x+5,p.y,p.w-10,4);ctx.globalAlpha=1;
     });
+  }
+
+  function drawRewardStatue() {
+    if (!rewardStatue) return;
+    const s = rewardStatue;
+    const cx = s.x + s.w / 2;
+    const pulse = .75 + Math.sin(performance.now()/260) * .15;
+    ctx.save();
+    ctx.shadowColor = '#ffe9a8';
+    ctx.shadowBlur = 18 * pulse;
+    ctx.fillStyle = 'rgba(255,233,168,.18)';
+    ctx.beginPath(); ctx.ellipse(cx, s.y + s.h - 6, 70, 14, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d8c7ff';
+    roundRect(ctx, s.x + 8, s.y + 42, s.w - 16, 58, 18, true);
+    ctx.fillStyle = '#f8e7bf';
+    ctx.beginPath(); ctx.arc(cx, s.y + 32, 24, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffe9a8';
+    ctx.beginPath(); ctx.arc(cx, s.y + 31, 34, Math.PI*.12, Math.PI*.88, true); ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 6; ctx.stroke();
+    ctx.fillStyle = '#7c5cff';
+    roundRect(ctx, cx - 20, s.y + 53, 40, 10, 5, true);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('TOQUE', cx, s.y - 8);
+    ctx.restore();
+    ctx.textAlign = 'left';
   }
 
   function exitDoorRect() { return {x:W-46,y:H-190,w:38,h:120}; }
@@ -1180,7 +1211,7 @@
     const sx=save.settings.shake?rand(-camera.shake,camera.shake):0;
     const sy=save.settings.shake?rand(-camera.shake,camera.shake):0;
     ctx.translate(sx,sy);
-    drawBackground();drawPlatforms();drawDoors();drawHazards();
+    drawBackground();drawPlatforms();drawRewardStatue();drawDoors();drawHazards();
     enemies.forEach(e=>e.draw());
     enemyProjectiles.forEach(p=>{ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=12;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;});
     projectiles.forEach(p=>p.draw());
