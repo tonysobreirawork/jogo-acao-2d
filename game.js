@@ -112,31 +112,202 @@
     recovery: { name: 'Nanorreparo', icon: '➕', description: 'Recupera 2 de vida ao limpar uma sala.', max: 6, baseCost: 140 }
   };
 
+  const perk = (id, name, icon, desc, tags, weight, apply) => ({ id, name, icon, desc, tags, weight, apply });
+  const addStat = (prop, value) => p => { p[prop] = (p[prop] || 0) + value; };
+  const mulStat = (prop, value) => p => { p[prop] *= value; };
+  const combo = (...effects) => p => effects.forEach(effect => effect(p));
+  const addMaxHp = value => p => { p.maxHp += value; p.hp = Math.min(p.maxHp, p.hp + value); };
+  const healPct = pct => p => { p.hp = Math.min(p.maxHp, p.hp + p.maxHp * pct * p.healMul); };
+  const addShield = value => p => { p.maxShield += value; p.shield += value; };
+
   const LEVEL_UP_POOL = [
-    { id: 'damage', name: '+Dano', icon: '⚔️', desc: '+18% de dano.', tags: ['Dano'], weight: 10, apply: p => p.damageMul *= 1.18 },
-    { id: 'attackSpeed', name: '+Velocidade de Ataque', icon: '⚡', desc: '+16% de cadência de tiro.', tags: ['Velocidade'], weight: 10, apply: p => p.attackSpeedMul *= 1.16 },
-    { id: 'speed', name: '+Velocidade de Movimento', icon: '👟', desc: '+14% de velocidade de movimento.', tags: ['Movimento'], weight: 9, apply: p => p.moveSpeedMul *= 1.14 },
-    { id: 'maxHp', name: '+Vida Máxima', icon: '❤️', desc: '+25 de vida máxima e cura 25.', tags: ['Defesa'], weight: 9, apply: p => { p.maxHp += 25; p.hp = Math.min(p.maxHp, p.hp + 25); } },
-    { id: 'heal', name: 'Cura', icon: '➕', desc: 'Recupera 45% da vida máxima.', tags: ['Cura'], weight: 8, apply: p => p.hp = Math.min(p.maxHp, p.hp + p.maxHp * .45) },
-    { id: 'doubleShot', name: 'Tiro Duplo', icon: 'Ⅱ', desc: '+1 projétil por disparo.', tags: ['Projétil'], weight: 7, apply: p => { p.extraProjectiles += 1; p.spread = Math.max(p.spread, .09); } },
-    { id: 'tripleShot', name: 'Tiro Triplo', icon: 'Ⅲ', desc: '+2 projéteis por disparo.', tags: ['Projétil'], weight: 6, apply: p => { p.extraProjectiles += 2; p.spread = Math.max(p.spread, .12); } },
-    { id: 'ricochet', name: 'Ricochete', icon: '↗️', desc: 'Projéteis ricocheteiam em outro inimigo.', tags: ['Projétil'], weight: 7, apply: p => p.ricochet += 1 },
-    { id: 'pierce', name: 'Perfuração', icon: '🪛', desc: 'Projéteis atravessam +2 inimigos.', tags: ['Projétil'], weight: 7, apply: p => p.pierce += 2 },
-    { id: 'explosive', name: 'Explosão', icon: '💥', desc: 'Impactos causam dano em área.', tags: ['Área'], weight: 7, apply: p => { p.explosionRadius += 46; p.explosionMul += .38; } },
-    { id: 'poison', name: 'Veneno', icon: '☠️', desc: 'Tiros aplicam veneno acumulável.', tags: ['Dano contínuo'], weight: 7, apply: p => p.poisonStacks += 1 },
-    { id: 'freeze', name: 'Gelo', icon: '❄️', desc: 'Tiros reduzem a velocidade dos inimigos.', tags: ['Controle'], weight: 7, apply: p => p.freezePower += .18 },
-    { id: 'shock', name: 'Choque', icon: '⚡', desc: 'Acertos saltam dano elétrico para inimigos próximos.', tags: ['Área'], weight: 6, apply: p => p.shockStacks += 1 },
-    { id: 'focusedShot', name: 'Tiro Concentrado', icon: '🎯', desc: '+1% de dano por acerto seguido no mesmo inimigo.', tags: ['Dano'], weight: 7, apply: p => p.focusedShot += 1 },
-    { id: 'vampireShot', name: 'Tiro Vampiro', icon: '🩸', desc: 'Acertos recuperam um pouco de vida.', tags: ['Cura'], weight: 6, apply: p => p.vampireShot += 1 },
-    { id: 'homing', name: 'Tiros Buscadores', icon: '🎯', desc: 'Projéteis curvam levemente até alvos próximos.', tags: ['Projétil'], weight: 6, apply: p => p.homing += 1 },
-    { id: 'bigBullets', name: 'Balas Maiores', icon: '🔵', desc: 'Aumenta o tamanho e contato dos projéteis.', tags: ['Projétil'], weight: 7, apply: p => p.projectileScale += .35 },
-    { id: 'crit', name: 'Crítico', icon: '✴️', desc: '+8% de chance crítica e +20% de dano crítico.', tags: ['Crítico'], weight: 7, apply: p => { p.critChance += .08; p.critMul += .2; } },
-    { id: 'critChance', name: 'Chance Crítica', icon: '🎲', desc: '+14% de chance crítica.', tags: ['Crítico'], weight: 8, apply: p => p.critChance += .14 },
-    { id: 'critDamage', name: 'Dano Crítico', icon: '💢', desc: '+50% de dano crítico.', tags: ['Crítico'], weight: 7, apply: p => p.critMul += .5 },
-    { id: 'shield', name: 'Escudo', icon: '🛡️', desc: '+40 de escudo permanente nesta partida.', tags: ['Defesa'], weight: 8, apply: p => { p.maxShield += 40; p.shield += 40; } },
-    { id: 'revive', name: 'Reviver', icon: '🕯️', desc: 'Ganha uma revivescência com 50% de vida.', tags: ['Defesa'], weight: 4, apply: p => p.revives += 1 },
-    { id: 'fanShot', name: 'Disparo em Leque', icon: '🪭', desc: 'Abre mais o ângulo dos disparos múltiplos.', tags: ['Projétil'], weight: 6, apply: p => { p.extraProjectiles += 2; p.spread += .16; } },
-    { id: 'circleShot', name: 'Tiro Circular', icon: '⭕', desc: 'Dispara uma rajada circular junto ao tiro principal.', tags: ['Área'], weight: 5, apply: p => p.circularShot += 1 }
+    perk('attackDamageMinor', 'Attack Damage Minor', '⚔️', 'Pequeno aumento de dano.', ['Ataque'], 10, mulStat('damageMul', 1.12)),
+    perk('attackDamageMajor', 'Attack Damage Major', '⚔️', 'Grande aumento de dano.', ['Ataque'], 7, mulStat('damageMul', 1.28)),
+    perk('attackSpeedMinor', 'Attack Speed Minor', '⚔️', 'Pequeno aumento da velocidade de ataque.', ['Ataque'], 10, mulStat('attackSpeedMul', 1.10)),
+    perk('attackSpeedMajor', 'Attack Speed Major', '⚔️', 'Grande aumento da velocidade de ataque.', ['Ataque'], 7, mulStat('attackSpeedMul', 1.24)),
+    perk('criticalChanceMinor', 'Critical Chance Minor', '⚔️', 'Pequeno aumento da chance de crítico.', ['Ataque'], 9, addStat('critChance', .08)),
+    perk('criticalChanceMajor', 'Critical Chance Major', '⚔️', 'Grande aumento da chance de crítico.', ['Ataque'], 6, addStat('critChance', .16)),
+    perk('fastShots', 'Fast Shots', '⚔️', 'Aumenta a velocidade dos projéteis.', ['Ataque'], 8, mulStat('projectileSpeedMul', 1.18)),
+    perk('focusShots', 'Focus Shots', '⚔️', 'Acertos repetidos no mesmo inimigo aumentam o dano.', ['Ataque'], 8, addStat('focusedShot', 1)),
+    perk('improvedFocusShots', 'Improved Focus Shots', '⚔️', 'Versão melhorada do Focus Shots.', ['Ataque'], 5, addStat('focusedShot', 2)),
+    perk('sustainedFire', 'Sustained Fire', '⚔️', 'Bônus ao manter fogo contínuo.', ['Ataque'], 7, combo(mulStat('attackSpeedMul', 1.08), mulStat('damageMul', 1.08))),
+    perk('improvedSustainedFire', 'Improved Sustained Fire', '⚔️', 'Versão melhorada de fogo contínuo.', ['Ataque'], 5, combo(mulStat('attackSpeedMul', 1.16), mulStat('damageMul', 1.12))),
+    perk('distantShots', 'Distant Shots', '⚔️', 'Mais dano em inimigos distantes.', ['Ataque'], 7, addStat('distantDamage', .22)),
+    perk('alphaBullets', 'Alpha Bullets', '⚔️', 'Os primeiros tiros causam dano aumentado.', ['Ataque'], 6, addStat('alphaBullets', .35)),
+    perk('luckyBullets', 'Lucky Bullets', '⚔️', 'Chance de causar um disparo extremamente poderoso.', ['Ataque'], 5, addStat('luckyBullets', .04)),
+    perk('gunheart', 'Gunheart', '⚔️', 'Aumenta o poder geral da arma.', ['Ataque'], 5, combo(mulStat('damageMul', 1.15), mulStat('attackSpeedMul', 1.08), mulStat('projectileSpeedMul', 1.08))),
+    perk('fury', 'Fury', '⚔️', 'Aumenta o dano durante o combate.', ['Ataque'], 6, mulStat('damageMul', 1.18)),
+    perk('wrath', 'Wrath', '⚔️', 'Grande bônus ofensivo.', ['Ataque'], 4, combo(mulStat('damageMul', 1.3), addStat('critChance', .08))),
+    perk('berserk', 'Berserk', '⚔️', 'Quanto menor a vida, maior o dano.', ['Ataque'], 6, addStat('berserk', .55)),
+    perk('coldBlooded', 'Cold Blooded', '⚔️', 'Bônus contra inimigos afetados.', ['Ataque'], 6, addStat('coldBlooded', .25)),
+    perk('hotBlood', 'Hot Blood', '⚔️', 'Buff ofensivo ligado à vida e combate.', ['Ataque'], 6, combo(mulStat('damageMul', 1.12), addStat('regen', .35))),
+    perk('overdrive', 'Overdrive', '⚔️', 'Grande aumento temporário no DPS.', ['Ataque'], 4, combo(mulStat('attackSpeedMul', 1.28), mulStat('damageMul', 1.18))),
+    perk('concentratedFire', 'Concentrated Fire', '⚔️', 'Mais dano ao manter foco no mesmo alvo.', ['Ataque'], 6, addStat('focusedShot', 1.5)),
+    perk('multiShot', 'Multi Shot', '🔫', 'Dispara uma rajada extra.', ['Projéteis'], 8, combo(addStat('extraProjectiles', 1), addStat('spread', .06))),
+    perk('tripleMultiShot', 'Triple Multi Shot', '🔫', 'Versão superior de rajada extra.', ['Projéteis'], 5, combo(addStat('extraProjectiles', 3), addStat('spread', .12))),
+    perk('doubleBarrel', 'Double Barrel', '🔫', 'Adiciona um segundo projétil frontal.', ['Projéteis'], 8, addStat('extraProjectiles', 1)),
+    perk('tripleBarrel', 'Triple Barrel', '🔫', 'Três projéteis frontais.', ['Projéteis'], 6, addStat('extraProjectiles', 2)),
+    perk('quadBarrel', 'Quad Barrel', '🔫', 'Quatro projéteis frontais.', ['Projéteis'], 4, addStat('extraProjectiles', 3)),
+    perk('spreadShot', 'Spread Shot', '🔫', 'Disparos em leque.', ['Projéteis'], 7, combo(addStat('extraProjectiles', 2), addStat('spread', .16))),
+    perk('backShot', 'Back Shot', '🔫', 'Disparo para trás.', ['Projéteis'], 6, addStat('backShot', 1)),
+    perk('verticalShot', 'Vertical Shot', '🔫', 'Disparos para cima e para baixo.', ['Projéteis'], 6, addStat('verticalShot', 1)),
+    perk('buckShot', 'Buck Shot', '🔫', 'Disparo tipo escopeta.', ['Projéteis'], 6, combo(addStat('extraProjectiles', 4), addStat('spread', .22), mulStat('damageMul', .92))),
+    perk('piercingShots', 'Piercing Shots', '🔫', 'Balas atravessam inimigos.', ['Projéteis'], 7, addStat('pierce', 2)),
+    perk('ricochet', 'Ricochet', '🔫', 'Balas ricocheteiam nos inimigos.', ['Projéteis'], 7, addStat('ricochet', 1)),
+    perk('ricochetLite', 'Ricochet Lite', '🔫', 'Versão reduzida de ricochete.', ['Projéteis'], 8, addStat('ricochet', .5)),
+    perk('bouncingShots', 'Bouncing Shots', '🔫', 'Ricochete nas paredes.', ['Projéteis'], 5, addStat('wallBounces', 1)),
+    perk('homingShots', 'Homing Shots', '🔫', 'Balas perseguem inimigos.', ['Projéteis'], 7, addStat('homing', 1)),
+    perk('superHomingShots', 'Super Homing Shots', '🔫', 'Busca de alvo muito mais eficiente.', ['Projéteis'], 4, addStat('homing', 3)),
+    perk('dividingShots', 'Dividing Shots', '🔫', 'Balas se dividem após acertar.', ['Projéteis'], 5, addStat('dividingShots', 1)),
+    perk('boomerang', 'Boomerang', '🔫', 'Balas retornam ao jogador.', ['Projéteis'], 5, addStat('boomerangShots', 1)),
+    perk('ghostShots', 'Ghost Shots', '🔫', 'Balas atravessam obstáculos.', ['Projéteis'], 5, addStat('ghostShots', 1)),
+    perk('dimensionalShots', 'Dimensional Shots', '🔫', 'Projéteis ignoram parte das colisões.', ['Projéteis'], 4, addStat('ghostShots', 2)),
+    perk('sidewinderShots', 'Sidewinder Shots', '🔫', 'Disparos laterais.', ['Projéteis'], 6, addStat('sideShots', 1)),
+    perk('sidewinderShots2', 'Sidewinder Shots II', '🔫', 'Evolução dos disparos laterais.', ['Projéteis'], 5, addStat('sideShots', 2)),
+    perk('endlessSidewinders', 'Endless Sidewinders', '🔫', 'Mantém disparos laterais continuamente.', ['Projéteis'], 4, combo(addStat('sideShots', 3), mulStat('attackSpeedMul', 1.08))),
+    perk('trimerang', 'Trimerang', '🔫', 'Três bumerangues.', ['Projéteis'], 4, combo(addStat('boomerangShots', 3), addStat('extraProjectiles', 2))),
+    perk('harpoon', 'Harpoon', '🔫', 'Disparo em formato de arpão.', ['Projéteis'], 5, combo(addStat('pierce', 4), mulStat('damageMul', 1.12))),
+    perk('calculatedShots', 'Calculated Shots', '🔫', 'Disparos com comportamento especial.', ['Projéteis'], 5, combo(addStat('critChance', .08), addStat('luckyBullets', .03))),
+    perk('acrobaticShots', 'Acrobatic Shots', '🔫', 'Tiros mais fortes durante pulos.', ['Projéteis'], 5, addStat('airDamage', .25)),
+    perk('fieryShots', 'Fiery Shots', '🔥', 'Balas queimam inimigos.', ['Fogo'], 7, addStat('burnStacks', 1)),
+    perk('infernoShots', 'Inferno Shots', '🔥', 'Queimadura muito mais forte.', ['Fogo'], 5, addStat('burnStacks', 3)),
+    perk('flamethrower', 'Flamethrower', '🔥', 'Lança chamas continuamente.', ['Fogo'], 4, combo(addStat('burnStacks', 2), mulStat('attackSpeedMul', 1.12))),
+    perk('fireborn', 'Fireborn', '🔥', 'Buff para ataques de fogo.', ['Fogo'], 6, addStat('elementalPower', .2)),
+    perk('flameShield', 'Flame Shield', '🔥', 'Escudo que causa dano de fogo ao contato.', ['Fogo'], 5, combo(addShield(25), addStat('burnStacks', 1))),
+    perk('heatwave', 'Heatwave', '🔥', 'Onda de calor ao redor do personagem.', ['Fogo'], 5, addStat('heatwave', 1)),
+    perk('carbonize', 'Carbonize', '🔥', 'Amplifica queimaduras.', ['Fogo'], 5, addStat('elementalPower', .3)),
+    perk('poisonShots', 'Poison Shots', '☠️', 'Balas aplicam veneno.', ['Veneno'], 7, addStat('poisonStacks', 1)),
+    perk('venomShots', 'Venom Shots', '☠️', 'Veneno fortalecido.', ['Veneno'], 6, addStat('poisonStacks', 2)),
+    perk('toxicShots', 'Toxic Shots', '☠️', 'Dano tóxico contínuo.', ['Veneno'], 6, combo(addStat('poisonStacks', 1), addStat('elementalPower', .15))),
+    perk('acidShots', 'Acid Shots', '☠️', 'Dano corrosivo.', ['Veneno'], 5, combo(addStat('poisonStacks', 1), addStat('armorBreak', .15))),
+    perk('blightShots', 'Blight Shots', '☠️', 'Veneno avançado.', ['Veneno'], 5, addStat('poisonStacks', 3)),
+    perk('plagueShots', 'Plague Shots', '☠️', 'Veneno espalha entre inimigos.', ['Veneno'], 5, addStat('toxicBurst', 1)),
+    perk('poisonborn', 'Poisonborn', '☠️', 'Buff para veneno.', ['Veneno'], 6, addStat('elementalPower', .2)),
+    perk('poisonTrail', 'Poison Trail', '☠️', 'Trilha venenosa.', ['Veneno'], 5, addStat('poisonTrail', 1)),
+    perk('plagueCloud', 'Plague Cloud', '☠️', 'Nuvem de veneno.', ['Veneno'], 4, combo(addStat('toxicBurst', 1), addStat('poisonStacks', 1))),
+    perk('freezeShot', 'Freeze Shot', '❄️', 'Congela inimigos.', ['Gelo'], 7, addStat('freezePower', .18)),
+    perk('iceborn', 'Iceborn', '❄️', 'Buff de gelo.', ['Gelo'], 6, addStat('elementalPower', .2)),
+    perk('iceplosion', 'Iceplosion', '❄️', 'Explosão congelante.', ['Gelo'], 5, combo(addStat('freezePower', .12), addStat('explosionRadius', 28))),
+    perk('iceNova', 'Ice Nova', '❄️', 'Onda de gelo.', ['Gelo'], 5, addStat('iceNova', 1)),
+    perk('cryoShield', 'Cryo Shield', '❄️', 'Escudo congelante que desacelera inimigos.', ['Gelo'], 5, combo(addShield(30), addStat('freezePower', .1))),
+    perk('snowballBullets', 'Snowball Bullets', '❄️', 'Balas de neve maiores.', ['Gelo'], 6, combo(addStat('projectileScale', .25), addStat('freezePower', .08))),
+    perk('electricShots', 'Electric Shots', '⚡', 'Balas elétricas.', ['Eletricidade'], 7, addStat('shockStacks', 1)),
+    perk('improvedElectricShots', 'Improved Electric Shots', '⚡', 'Versão melhorada.', ['Eletricidade'], 5, addStat('shockStacks', 2)),
+    perk('staticCharge', 'Static Charge', '⚡', 'Acumula eletricidade.', ['Eletricidade'], 6, combo(addStat('shockStacks', 1), addStat('critChance', .05))),
+    perk('lightningborn', 'Lightningborn', '⚡', 'Buff elétrico.', ['Eletricidade'], 6, addStat('elementalPower', .2)),
+    perk('thunderstorm', 'Thunderstorm', '⚡', 'Raios em área.', ['Eletricidade'], 4, addStat('shockStacks', 3)),
+    perk('stormShots', 'Storm Shots', '⚡', 'Projéteis elétricos.', ['Eletricidade'], 5, combo(addStat('shockStacks', 1), mulStat('projectileSpeedMul', 1.12))),
+    perk('grounding', 'Grounding', '⚡', 'Efeito elétrico no solo.', ['Eletricidade'], 5, addStat('grounding', 1)),
+    perk('entropyShots', 'Entropy Shots', '⚡', 'Projéteis de entropia.', ['Eletricidade'], 5, combo(addStat('shockStacks', 1), addStat('poisonStacks', 1))),
+    perk('elementalAttunement', 'Elemental Attunement', '⚡', 'Melhora todos os efeitos elementais.', ['Eletricidade'], 4, addStat('elementalPower', .35)),
+    perk('explosiveShots', 'Explosive Shots', '💥', 'Balas explodem ao atingir.', ['Explosões'], 7, combo(addStat('explosionRadius', 46), addStat('explosionMul', .38))),
+    perk('explosiveCrits', 'Explosive Crits', '💥', 'Críticos causam explosão.', ['Explosões'], 6, addStat('critExplosion', 1)),
+    perk('cannonShots', 'Cannon Shots', '💥', 'Disparos explosivos maiores.', ['Explosões'], 5, combo(addStat('explosionRadius', 70), addStat('explosionMul', .55), mulStat('attackSpeedMul', .94))),
+    perk('grenade', 'Grenade', '💥', 'Lança granadas.', ['Explosões'], 5, combo(addStat('explosionRadius', 60), addStat('arcShots', 1))),
+    perk('kaboom', 'Kaboom', '💥', 'Grande explosão.', ['Explosões'], 4, combo(addStat('explosionRadius', 95), addStat('explosionMul', .8))),
+    perk('mrBomber', 'Mr Bomber', '💥', 'Buff para explosivos.', ['Explosões'], 5, combo(addStat('explosionRadius', 35), addStat('explosionMul', .25))),
+    perk('floatingMines', 'Floating Mines', '💥', 'Minas flutuantes.', ['Explosões'], 4, addStat('floatingMines', 1)),
+    perk('fragBullets', 'Frag Bullets', '💥', 'Balas fragmentam.', ['Explosões'], 5, addStat('dividingShots', 1)),
+    perk('shrapnelShot', 'Shrapnel Shot', '💥', 'Estilhaços após impacto.', ['Explosões'], 5, combo(addStat('extraProjectiles', 1), addStat('spread', .08))),
+    perk('shrapnelBlast', 'Shrapnel Blast', '💥', 'Explosão de estilhaços.', ['Explosões'], 4, combo(addStat('dividingShots', 1), addStat('explosionRadius', 30))),
+    perk('piercingShrapnels', 'Piercing Shrapnels', '💥', 'Estilhaços atravessam inimigos.', ['Explosões'], 4, combo(addStat('dividingShots', 1), addStat('pierce', 1))),
+    perk('explodingMobs', 'Exploding Mobs', '💥', 'Inimigos explodem ao morrer.', ['Explosões'], 5, addStat('deathExplosion', 1)),
+    perk('shrapnelMobs', 'Shrapnel Mobs', '💥', 'Mortes geram estilhaços.', ['Explosões'], 5, combo(addStat('deathExplosion', 1), addStat('dividingShots', 1))),
+    perk('electricMobs', 'Electric Mobs', '💥', 'Mortes liberam eletricidade.', ['Explosões'], 5, combo(addStat('deathExplosion', 1), addStat('shockStacks', 1))),
+    perk('fieryMobs', 'Fiery Mobs', '💥', 'Mortes causam fogo.', ['Explosões'], 5, combo(addStat('deathExplosion', 1), addStat('burnStacks', 1))),
+    perk('poisonousMobs', 'Poisonous Mobs', '💥', 'Mortes espalham veneno.', ['Explosões'], 5, combo(addStat('toxicBurst', 1), addStat('deathExplosion', 1))),
+    perk('sedativeMobs', 'Sedative Mobs', '💥', 'Mortes desaceleram inimigos.', ['Explosões'], 5, combo(addStat('deathExplosion', 1), addStat('freezePower', .12))),
+    perk('hpUp', 'HP Up', '❤️', 'Aumenta a vida máxima.', ['Vida/Cura'], 9, addMaxHp(35)),
+    perk('heal', 'Heal', '❤️', 'Recupera vida imediatamente.', ['Vida/Cura'], 8, healPct(.45)),
+    perk('lifesteal', 'Lifesteal', '❤️', 'Recupera vida proporcional ao dano.', ['Vida/Cura'], 7, addStat('vampireShot', 1)),
+    perk('greatLifesteal', 'Great Lifesteal', '❤️', 'Lifesteal aprimorado.', ['Vida/Cura'], 5, addStat('vampireShot', 2)),
+    perk('bandaid', 'Bandaid', '❤️', 'Recupera vida ao limpar salas.', ['Vida/Cura'], 6, addStat('roomHeal', 10)),
+    perk('combatMedic', 'Combat Medic', '❤️', 'Aumenta curas recebidas.', ['Vida/Cura'], 6, mulStat('healMul', 1.3)),
+    perk('healingBullets', 'Healing Bullets', '❤️', 'Disparos podem restaurar vida.', ['Vida/Cura'], 6, addStat('vampireShot', 1)),
+    perk('healingFlames', 'Healing Flames', '❤️', 'Queimaduras também curam.', ['Vida/Cura'], 5, combo(addStat('burnStacks', 1), addStat('vampireShot', 1))),
+    perk('healingToxins', 'Healing Toxins', '❤️', 'Veneno gera cura.', ['Vida/Cura'], 5, combo(addStat('poisonStacks', 1), addStat('vampireShot', 1))),
+    perk('heartShot', 'Heart Shot', '❤️', 'Chance de gerar corações.', ['Vida/Cura'], 5, addStat('heartShot', 1)),
+    perk('regrowth', 'Regrowth', '❤️', 'Regeneração contínua.', ['Vida/Cura'], 6, addStat('regen', .7)),
+    perk('tank', 'Tank', '❤️', 'Grande aumento de HP e resistência.', ['Vida/Cura'], 5, combo(addMaxHp(70), addStat('damageReduction', .08))),
+    perk('juggernaut', 'Juggernaut', '❤️', 'Sobrevivência significativamente maior.', ['Vida/Cura'], 4, combo(addMaxHp(90), addShield(45), addStat('damageReduction', .1))),
+    perk('sisu', 'Sisu', '❤️', 'Sobrevive a um golpe fatal uma vez.', ['Vida/Cura'], 4, addStat('revives', 1)),
+    perk('revenge', 'Revenge', '❤️', 'Após sofrer dano, ganha poder ofensivo.', ['Vida/Cura'], 5, combo(mulStat('damageMul', 1.1), addStat('shockStacks', 1))),
+    perk('heavyArmor', 'Heavy Armor', '🛡️', 'Reduz todo dano recebido.', ['Defesa'], 7, addStat('damageReduction', .08)),
+    perk('blastSuit', 'Blast Suit', '🛡️', 'Reduz explosões e aumenta escudo.', ['Defesa'], 6, addShield(35)),
+    perk('bulletproof', 'Bulletproof', '🛡️', 'Reduz dano de projéteis.', ['Defesa'], 6, addStat('damageReduction', .06)),
+    perk('personalShield', 'Personal Shield', '🛡️', 'Gera escudo protetor.', ['Defesa'], 7, addShield(45)),
+    perk('riotShield', 'Riot Shield', '🛡️', 'Escudo frontal resistente.', ['Defesa'], 5, combo(addShield(70), addStat('damageReduction', .04))),
+    perk('deflectionShield', 'Deflection Shield', '🛡️', 'Desvia projéteis inimigos.', ['Defesa'], 5, addStat('deflect', 1)),
+    perk('shieldAura', 'Shield Aura', '🛡️', 'Aura de proteção contínua.', ['Defesa'], 5, combo(addShield(35), addStat('regenShield', 1))),
+    perk('shieldWard', 'Shield Ward', '🛡️', 'Barreira persistente.', ['Defesa'], 5, addShield(80)),
+    perk('shieldingShots', 'Shielding Shots', '🛡️', 'Disparos fortalecem escudos.', ['Defesa'], 5, addStat('shieldingShots', 1)),
+    perk('magicBubble', 'Magic Bubble', '🛡️', 'Bolha de proteção.', ['Defesa'], 4, combo(addShield(100), addStat('damageReduction', .05))),
+    perk('invincible', 'Invincible', '🛡️', 'Invulnerabilidade temporária mais frequente.', ['Defesa'], 4, addStat('invincibleBoost', 1)),
+    perk('improvedInvincible', 'Improved Invincible', '🛡️', 'Invulnerabilidade aprimorada.', ['Defesa'], 3, addStat('invincibleBoost', 2)),
+    perk('absorb', 'Absorb', '🛡️', 'Absorve parte do dano.', ['Defesa'], 5, addStat('damageReduction', .1)),
+    perk('unstoppable', 'Unstoppable', '🛡️', 'Evita controles e empurrões.', ['Defesa'], 5, addStat('knockbackResist', 1)),
+    perk('aerialProtection', 'Aerial Protection', '🛡️', 'Reduz dano no ar.', ['Defesa'], 5, addStat('airDefense', .2)),
+    perk('movementBoost', 'Movement Boost', '👟', 'Aumenta velocidade.', ['Mobilidade'], 9, mulStat('moveSpeedMul', 1.14)),
+    perk('roadRunner', 'Road Runner', '👟', 'Grande aumento de corrida.', ['Mobilidade'], 6, mulStat('moveSpeedMul', 1.28)),
+    perk('needForSpeed', 'Need For Speed', '👟', 'Buff adicional de velocidade.', ['Mobilidade'], 5, combo(mulStat('moveSpeedMul', 1.18), mulStat('attackSpeedMul', 1.06))),
+    perk('tripleJump', 'Triple Jump', '👟', 'Permite terceiro salto.', ['Mobilidade'], 5, p => p.maxJumps = Math.max(p.maxJumps, 3)),
+    perk('spring', 'Spring', '👟', 'Aumenta altura dos saltos.', ['Mobilidade'], 6, mulStat('jumpForce', 1.12)),
+    perk('jetpack', 'Jetpack', '👟', 'Permite sustentar mais o pulo.', ['Mobilidade'], 4, addStat('maxJumpHold', .12)),
+    perk('balloon', 'Balloon', '👟', 'Reduz queda.', ['Mobilidade'], 5, addStat('floatPower', .15)),
+    perk('airSuperiority', 'Air Superiority', '👟', 'Bônus no ar.', ['Mobilidade'], 5, addStat('airDamage', .25)),
+    perk('bulletTime', 'Bullet Time', '👟', 'Desacelera projéteis próximos.', ['Mobilidade'], 4, addStat('bulletTime', 1)),
+    perk('timeStop', 'Time Stop', '👟', 'Congela inimigos temporariamente.', ['Mobilidade'], 3, addStat('timeStop', 1)),
+    perk('ninja', 'Ninja', '👟', 'Melhora esquiva e mobilidade.', ['Mobilidade'], 5, combo(mulStat('moveSpeedMul', 1.12), p => p.dashCooldown *= .75)),
+    perk('dodgeMaster', 'Dodge Master', '👟', 'Chance de esquiva automática.', ['Mobilidade'], 5, addStat('dodgeChance', .08)),
+    perk('adrenaline', 'Adrenaline', '👟', 'Bônus com pouca vida.', ['Mobilidade'], 5, addStat('berserk', .3)),
+    perk('acroCircus', 'Acro Circus', '👟', 'Ataques melhores em acrobacias.', ['Mobilidade'], 5, addStat('airDamage', .35)),
+    perk('stealth', 'Stealth', '👟', 'Furtividade temporária.', ['Mobilidade'], 4, addStat('stealth', 1)),
+    perk('stealthCloak', 'Stealth Cloak', '👟', 'Furtividade aprimorada.', ['Mobilidade'], 3, addStat('stealth', 2)),
+    perk('dwarf', 'Dwarf', '👟', 'Menor e mais difícil de acertar.', ['Mobilidade'], 4, combo(addStat('damageReduction', .05), mulStat('moveSpeedMul', 1.08))),
+    perk('colossus', 'Colossus', '👟', 'Maior, mais HP e resistência.', ['Mobilidade'], 4, combo(addMaxHp(80), addStat('damageReduction', .08), mulStat('moveSpeedMul', .95))),
+    perk('attackDrones', 'Attack Drones', '🛸', 'Invoca drones.', ['Invocações'], 6, addStat('drones', 1)),
+    perk('fieryDrone', 'Fiery Drone', '🛸', 'Drone de fogo.', ['Invocações'], 5, combo(addStat('drones', 1), addStat('burnStacks', 1))),
+    perk('poisonousDrone', 'Poisonous Drone', '🛸', 'Drone venenoso.', ['Invocações'], 5, combo(addStat('drones', 1), addStat('poisonStacks', 1))),
+    perk('sedativeDrone', 'Sedative Drone', '🛸', 'Drone que desacelera.', ['Invocações'], 5, combo(addStat('drones', 1), addStat('freezePower', .08))),
+    perk('turret', 'Turret', '🛸', 'Torre automática.', ['Invocações'], 5, addStat('drones', 1)),
+    perk('plantTurret', 'Plant Turret', '🛸', 'Torre planta.', ['Invocações'], 5, combo(addStat('drones', 1), addStat('poisonStacks', 1))),
+    perk('protectiveMecha', 'Protective Mecha', '🛸', 'Robô protetor.', ['Invocações'], 4, combo(addStat('drones', 1), addShield(45))),
+    perk('wisp', 'Wisp', '🛸', 'Espírito atacante.', ['Invocações'], 5, combo(addStat('drones', 1), addStat('shockStacks', 1))),
+    perk('locustSwarm', 'Locust Swarm', '🛸', 'Enxame atacante.', ['Invocações'], 4, addStat('drones', 2)),
+    perk('viciousFlock', 'Vicious Flock', '🛸', 'Criaturas atacam continuamente.', ['Invocações'], 4, addStat('drones', 2)),
+    perk('shepherd', 'Shepherd', '🛸', 'Fortalece invocações.', ['Invocações'], 5, addStat('droneDamageMul', .35)),
+    perk('gravityWellSummon', 'Gravity Well', '🛸', 'Campo gravitacional.', ['Invocações'], 4, addStat('gravityWell', 1)),
+    perk('decoy', 'Decoy', '🛸', 'Cria alvo falso.', ['Invocações'], 4, addStat('decoy', 1)),
+    perk('fastLearner', 'Fast Learner', '💎', 'Aumenta experiência obtida.', ['Economia/XP'], 7, mulStat('xpMul', 1.25)),
+    perk('improvedFastLearner', 'Improved Fast Learner', '💎', 'Fast Learner aprimorado.', ['Economia/XP'], 5, mulStat('xpMul', 1.5)),
+    perk('treasureHunter', 'Treasure Hunter', '💎', 'Mais recompensas.', ['Economia/XP'], 6, addStat('treasureHunter', 1)),
+    perk('wonderHunter', 'Wonder Hunter', '💎', 'Mais recompensas especiais.', ['Economia/XP'], 5, addStat('wonderHunter', 1)),
+    perk('hoarder', 'Hoarder', '💎', 'Mais moedas coletadas.', ['Economia/XP'], 6, mulStat('coinMul', 1.25)),
+    perk('croesus', 'Croesus', '💎', 'Grande bônus de ouro.', ['Economia/XP'], 4, mulStat('coinMul', 1.6)),
+    perk('haggler', 'Haggler', '💎', 'Reduz preços.', ['Economia/XP'], 5, addStat('discount', .1)),
+    perk('loyaltyCard', 'Loyalty Card', '💎', 'Descontos adicionais.', ['Economia/XP'], 4, addStat('discount', .15)),
+    perk('crafter', 'Crafter', '💎', 'Melhora recompensas.', ['Economia/XP'], 4, addStat('rewardQuality', 1)),
+    perk('salvage', 'Salvage', '💎', 'Converte itens em recursos.', ['Economia/XP'], 4, addStat('salvage', 1)),
+    perk('luckyCatch', 'Lucky Catch', '💎', 'Aumenta qualidade de recompensas.', ['Economia/XP'], 5, addStat('rewardQuality', 1)),
+    perk('jackpot', 'Jackpot', '💎', 'Chance de grandes recompensas.', ['Economia/XP'], 4, addStat('jackpot', 1)),
+    perk('cashingIn', 'Cashing In', '💎', 'Converte recursos em ouro.', ['Economia/XP'], 4, mulStat('coinMul', 1.35)),
+    perk('clairvoyance', 'Clairvoyance', '💎', 'Melhora opções de perks.', ['Economia/XP'], 5, addStat('choiceBonus', 1)),
+    perk('rogue', 'Rogue', '💎', 'Modifica seleção aleatória.', ['Economia/XP'], 5, addStat('choiceBonus', 1)),
+    perk('enlightened', 'Enlightened', '💎', 'Aumenta qualidade das habilidades.', ['Economia/XP'], 4, combo(addStat('choiceBonus', 1), mulStat('xpMul', 1.15))),
+    perk('totalRecall', 'Total Recall', '💎', 'Recupera escolhas.', ['Economia/XP'], 3, addStat('rerolls', 1)),
+    perk('gravityWell', 'Gravity Well', '✨', 'Atrai inimigos para um ponto.', ['Especial'], 4, addStat('gravityWell', 1)),
+    perk('entropyShotsSpecial', 'Entropy Shots', '✨', 'Aplica entropia.', ['Especial'], 5, combo(addStat('shockStacks', 1), addStat('poisonStacks', 1))),
+    perk('elementalAttunementSpecial', 'Elemental Attunement', '✨', 'Fortalece elementos.', ['Especial'], 4, addStat('elementalPower', .35)),
+    perk('calculatedShotsSpecial', 'Calculated Shots', '✨', 'Disparos condicionais.', ['Especial'], 5, combo(addStat('critChance', .08), addStat('luckyBullets', .03))),
+    perk('acrobaticShotsSpecial', 'Acrobatic Shots', '✨', 'Disparos no ar.', ['Especial'], 5, addStat('airDamage', .25)),
+    perk('ghostShotsSpecial', 'Ghost Shots', '✨', 'Atravessa obstáculos.', ['Especial'], 5, addStat('ghostShots', 1)),
+    perk('dimensionalShotsSpecial', 'Dimensional Shots', '✨', 'Ignora física normal.', ['Especial'], 4, addStat('ghostShots', 2)),
+    perk('gunheartSpecial', 'Gunheart', '✨', 'Fortalece arma.', ['Especial'], 5, combo(mulStat('damageMul', 1.15), mulStat('attackSpeedMul', 1.08))),
+    perk('overdriveSpecial', 'Overdrive', '✨', 'Desempenho intenso.', ['Especial'], 4, combo(mulStat('attackSpeedMul', 1.28), mulStat('damageMul', 1.18))),
+    perk('wrathSpecial', 'Wrath', '✨', 'Buff ofensivo intenso.', ['Especial'], 4, combo(mulStat('damageMul', 1.3), addStat('critChance', .08))),
+    perk('furySpecial', 'Fury', '✨', 'Dano durante combate.', ['Especial'], 6, mulStat('damageMul', 1.18)),
+    perk('coldBloodedSpecial', 'Cold Blooded', '✨', 'Dano contra afetados.', ['Especial'], 6, addStat('coldBlooded', .25)),
+    perk('hotBloodSpecial', 'Hot Blood', '✨', 'Buff ligado ao estado.', ['Especial'], 6, combo(mulStat('damageMul', 1.12), addStat('regen', .35)))
   ];
 
   const ROOM_BONUS_POOL = [
@@ -227,7 +398,12 @@
       this.jumpForce = character.jump;
       this.damageMul = character.damage * (1 + permDamage * .04);
       this.attackSpeedMul = character.attackSpeed;
+      this.projectileSpeedMul = 1;
       this.moveSpeedMul = 1;
+      this.xpMul = 1;
+      this.coinMul = 1;
+      this.healMul = 1;
+      this.damageReduction = 0;
       this.grounded = false;
       this.facing = 1;
       this.jumpCount = 0;
@@ -259,6 +435,13 @@
       this.shockStacks = 0;
       this.focusedShot = 0;
       this.vampireShot = 0;
+      this.burnStacks = 0;
+      this.elementalPower = 0;
+      this.distantDamage = 0;
+      this.berserk = 0;
+      this.coldBlooded = 0;
+      this.airDamage = 0;
+      this.regen = 0;
       this.homing = 0;
       this.projectileScale = 1;
       this.revives = 0;
@@ -275,6 +458,7 @@
       this.dashTimer -= dt;
       this.invuln -= dt;
       this.hitFlash -= dt;
+      if (this.regen > 0) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
 
       if (this.dashDuration > 0) {
         this.dashDuration -= dt;
@@ -295,7 +479,7 @@
         this.jumpHoldTimer -= dt;
       }
 
-      this.vy += 1650 * dt;
+      this.vy += 1650 * (1 - clamp(this.floatPower || 0, 0, .45)) * dt;
       this.x += this.vx * dt;
       this.resolveX();
       this.y += this.vy * dt;
@@ -372,15 +556,16 @@
       const aim = { x: target.x + target.w / 2, y: target.y + target.h / 2 };
       const baseAngle = Math.atan2(aim.y - source.y, aim.x - source.x);
       const total = this.weapon.pellets + this.extraProjectiles;
+      const projectileSpeed = this.weapon.projectileSpeed * this.projectileSpeedMul;
       for (let i = 0; i < total; i++) {
         const offset = total === 1 ? 0 : (i - (total - 1) / 2) * this.spread;
         const angle = baseAngle + offset;
         projectiles.push(new Projectile(
           source.x, source.y,
-          Math.cos(angle) * this.weapon.projectileSpeed,
-          Math.sin(angle) * this.weapon.projectileSpeed,
+          Math.cos(angle) * projectileSpeed,
+          Math.sin(angle) * projectileSpeed,
           this.weapon.damage * this.damageMul,
-          this.weapon.range / this.weapon.projectileSpeed,
+          this.weapon.range / projectileSpeed,
           this
         ));
       }
@@ -390,8 +575,8 @@
           const angle = (Math.PI * 2 * i) / shots;
           projectiles.push(new Projectile(
             source.x, source.y,
-            Math.cos(angle) * this.weapon.projectileSpeed * .72,
-            Math.sin(angle) * this.weapon.projectileSpeed * .72,
+            Math.cos(angle) * projectileSpeed * .72,
+            Math.sin(angle) * projectileSpeed * .72,
             this.weapon.damage * this.damageMul * .45,
             .55,
             this
@@ -406,6 +591,8 @@
 
     takeDamage(amount, sx, sy, forceRespawn = false) {
       if (this.invuln > 0) return;
+      amount *= 1 - clamp(this.damageReduction || 0, 0, .7);
+      if ((this.airDefense || 0) && !this.grounded) amount *= 1 - clamp(this.airDefense, 0, .5);
       let remaining = amount;
       if (this.shield > 0) {
         const absorbed = Math.min(this.shield, remaining);
@@ -495,7 +682,9 @@
       this.grounded = false;
       this.dead = false;
       this.poison = 0;
+      this.burn = 0;
       this.poisonTimer = 0;
+      this.burnTimer = 0;
       this.slow = 0;
       this.phase = 1;
       this.telegraph = 0;
@@ -513,11 +702,17 @@
       this.specialTimer -= dt;
       this.hitFlash -= dt;
       this.poisonTimer -= dt;
+      this.burnTimer -= dt;
       this.slow = Math.max(0, this.slow - dt * .1);
 
       if (this.poison > 0 && this.poisonTimer <= 0) {
         this.poisonTimer = .55;
         this.takeDamage(this.poison * 2.2, null, false, '#9cff66');
+      }
+      if (this.burn > 0 && this.burnTimer <= 0) {
+        this.burnTimer = .42;
+        this.takeDamage(this.burn * 2.8, null, false, '#ff9b45');
+        this.burn *= .92;
       }
 
       if (this.boss) {
@@ -669,7 +864,7 @@
       if (this.dead) return;
       this.dead = true;
       run.player.kills++;
-      run.coins += this.boss ? (this.subBoss ? 90 : 180) : this.elite ? 22 : 8;
+      run.coins += Math.round((this.boss ? (this.subBoss ? 90 : 180) : this.elite ? 22 : 8) * run.player.coinMul);
       run.score += this.boss ? (this.subBoss ? 1200 : 2500) : this.elite ? 240 : 85;
       run.player.hp = Math.min(run.player.maxHp, run.player.hp + run.player.healOnKill);
       const c = this.center;
@@ -679,7 +874,7 @@
         enemies.forEach(e => { if (!e.dead && e !== this && dist(e.center, c) < 150) e.poison += run.player.toxicBurst; });
       }
       if (enemies.length && enemies.every(e => e.dead)) clearEnemyAttacks();
-      if (this.subBoss) gainXp(700);
+      if (this.subBoss) gainXp(1600);
       if (this.boss && !this.subBoss) {
         beep('win', .22);
         setTimeout(() => endRun(true), 900);
@@ -782,6 +977,11 @@
       this.hit.add(e);
       let amount = this.damage;
       if (this.owner.focusedShot) amount *= 1 + e.focusHits * .01 * this.owner.focusedShot;
+      if (this.owner.distantDamage && dist(this.owner.center, e.center) > 360) amount *= 1 + this.owner.distantDamage;
+      if (this.owner.berserk) amount *= 1 + (1 - this.owner.hp / this.owner.maxHp) * this.owner.berserk;
+      if (this.owner.coldBlooded && (e.poison > 0 || e.slow > 0 || e.burn > 0)) amount *= 1 + this.owner.coldBlooded;
+      if (this.owner.airDamage && !this.owner.grounded) amount *= 1 + this.owner.airDamage;
+      if (this.owner.luckyBullets && Math.random() < this.owner.luckyBullets) amount *= 4;
       if (e.hp / e.maxHp < .35) amount *= 1 + this.owner.executeMul;
       const critical = Math.random() < this.owner.critChance;
       if (critical) amount *= this.owner.critMul;
@@ -792,6 +992,7 @@
         this.owner.hp = Math.min(this.owner.maxHp, this.owner.hp + heal);
       }
       if (this.owner.poisonStacks) e.poison += this.owner.poisonStacks;
+      if (this.owner.burnStacks) e.burn += this.owner.burnStacks * (1 + this.owner.elementalPower);
       if (this.owner.freezePower) e.slow = clamp(e.slow + this.owner.freezePower, 0, .72);
       if (this.owner.explosionRadius) areaDamage(this.x, this.y, this.owner.explosionRadius, amount * this.owner.explosionMul, true, e);
       if (this.owner.shockStacks) chainShock(e, amount * (.28 + this.owner.shockStacks * .08), this.owner.shockStacks);
@@ -1044,7 +1245,7 @@
     run.roomsCleared++;
     run.score += 350 + run.room*120;
     run.player.hp = Math.min(run.player.maxHp, run.player.hp + save.upgrades.recovery*2);
-    gainXp(110 + run.room * 18);
+    gainXp(220 + run.room * 45);
     toast('SALA LIMPA');
   }
 
@@ -1107,6 +1308,7 @@
   }
 
   function gainXp(amount) {
+    amount *= run.player.xpMul;
     run.xp += amount;
     while (run.xp >= run.xpToNext) {
       run.xp -= run.xpToNext;
