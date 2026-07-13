@@ -1272,6 +1272,7 @@
   function chooseBonus(bonus) {
     if (!isBonusAvailable(bonus)) return;
     bonus.apply(run.player); run.bonuses.push(bonus);
+    rewardStatue = null;
     updateBuildPanel(); hideScreens(); gameState='playing';
     run.pendingLevelUps = Math.max(0, run.pendingLevelUps - 1);
     if (run.pendingLevelUps > 0) presentBonuses();
