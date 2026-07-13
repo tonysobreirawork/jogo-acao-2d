@@ -228,6 +228,9 @@
       this.facing = 1;
       this.jumpCount = 0;
       this.maxJumps = 1;
+      this.jumpHeld = false;
+      this.jumpHoldTimer = 0;
+      this.maxJumpHold = .18;
       this.fireTimer = 0;
       this.dashTimer = 0;
       this.dashCooldown = 1.15;
@@ -281,6 +284,11 @@
         if (input) this.facing = input;
       }
 
+      if (this.jumpHeld && this.jumpHoldTimer > 0 && this.vy < 0) {
+        this.vy -= this.jumpForce * 2.05 * dt;
+        this.jumpHoldTimer -= dt;
+      }
+
       this.vy += 1650 * dt;
       this.x += this.vx * dt;
       this.resolveX();
@@ -315,21 +323,32 @@
           this.vy = 0;
           this.grounded = true;
           this.jumpCount = 0;
+          this.jumpHoldTimer = 0;
         } else if (this.vy < 0) {
           this.y = p.y + p.h;
           this.vy = 0;
+          this.jumpHoldTimer = 0;
         }
       }
     }
 
     jump() {
       if (this.grounded || this.jumpCount < this.maxJumps) {
-        this.vy = -this.jumpForce;
+        this.vy = -this.jumpForce * .78;
         this.grounded = false;
+        this.jumpHeld = true;
+        this.jumpHoldTimer = this.maxJumpHold;
         this.jumpCount++;
         spawnBurst(this.x + this.w / 2, this.y + this.h, '#b8fff2', 8, 130);
         beep('jump', .09);
       }
+    }
+
+    releaseJump() {
+      this.jumpHeld = false;
+      this.jumpHoldTimer = 0;
+      const cutVelocity = -this.jumpForce * .45;
+      if (this.vy < cutVelocity) this.vy = cutVelocity;
     }
 
     dash() {
@@ -1279,8 +1298,11 @@
     if((e.code==='ShiftLeft'||e.code==='ShiftRight')&&!keys.has(e.code))run.player.dash();
     keys.add(e.code);
   });
-  document.addEventListener('keyup',e=>keys.delete(e.code));
-  window.addEventListener('blur',()=>{keys.clear();if(gameState==='playing')pauseGame();});
+  document.addEventListener('keyup',e=>{
+    keys.delete(e.code);
+    if(gameState==='playing' && (e.code==='Space'||e.code==='KeyW'||e.code==='ArrowUp'))run.player.releaseJump();
+  });
+  window.addEventListener('blur',()=>{keys.clear();if(gameState==='playing'){run.player.releaseJump();pauseGame();}});
 
   $('playBtn').onclick=()=>{renderLoadout();showScreen('loadoutScreen');};
   $('progressionBtn').onclick=()=>{renderUpgrades();showScreen('upgradeScreen');};
@@ -1302,6 +1324,7 @@
     button.addEventListener('pointerleave',up);
   });
   $('touchJump').addEventListener('pointerdown',e=>{e.preventDefault();if(gameState==='playing')run.player.jump();});
+  ['pointerup','pointercancel','pointerleave'].forEach(type=>$('touchJump').addEventListener(type,e=>{e.preventDefault();if(gameState==='playing')run.player.releaseJump();}));
   $('touchDash').addEventListener('pointerdown',e=>{e.preventDefault();if(gameState==='playing')run.player.dash();});
 
   $('volumeRange').value=save.settings.volume;$('particlesToggle').checked=save.settings.particles;$('shakeToggle').checked=save.settings.shake;
