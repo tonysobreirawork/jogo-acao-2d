@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111827" />
+  <title>Auto Rogue: Fronteiras</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main id="app">
+    <canvas id="gameCanvas" width="1280" height="720" aria-label="Jogo Auto Rogue: Fronteiras"></canvas>
+
+    <section id="hud" class="hud hidden" aria-live="polite">
+      <div class="hud-left">
+        <div class="bar-group">
+          <span class="bar-label">VIDA</span>
+          <div class="bar hp"><div id="hpFill"></div></div>
+          <span id="hpText" class="bar-value">100 / 100</span>
+        </div>
+        <div class="bar-group">
+          <span class="bar-label">ESCUDO</span>
+          <div class="bar shield"><div id="shieldFill"></div></div>
+          <span id="shieldText" class="bar-value">0</span>
+        </div>
+      </div>
+
+      <div class="hud-center">
+        <div id="roomProgress" class="room-progress"></div>
+        <div id="bossHud" class="boss-hud hidden">
+          <span id="bossName">CHEFE</span>
+          <div class="bar boss"><div id="bossFill"></div></div>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <span>🪙 <b id="runCoins">0</b></span>
+        <span>✦ <b id="score">0</b></span>
+        <button id="pauseBtn" class="icon-btn" aria-label="Pausar">Ⅱ</button>
+      </div>
+    </section>
+
+    <aside id="buildPanel" class="build-panel hidden">
+      <button id="toggleBuildBtn" class="build-toggle">BÔNUS <span id="buildCount">0</span></button>
+      <div id="buildList" class="build-list"></div>
+    </aside>
+
+    <div id="touchControls" class="touch-controls hidden" aria-label="Controles por toque">
+      <div class="touch-move">
+        <button data-key="ArrowLeft" aria-label="Mover para a esquerda">◀</button>
+        <button data-key="ArrowRight" aria-label="Mover para a direita">▶</button>
+      </div>
+      <div class="touch-actions">
+        <button id="touchDash" class="dash-touch" aria-label="Esquivar">DASH</button>
+        <button id="touchJump" class="jump-touch" aria-label="Pular">▲</button>
+      </div>
+    </div>
+
+    <section id="menuScreen" class="screen active">
+      <div class="hero-card">
+        <p class="eyebrow">AÇÃO • PLATAFORMA • ROGUELITE</p>
+        <h1>AUTO ROGUE<br><span>FRONTEIRAS</span></h1>
+        <p class="subtitle">Mova-se. Esquive. Posicione-se. A arma faz o resto.</p>
+        <div class="menu-actions">
+          <button id="playBtn" class="primary-btn">INICIAR PARTIDA</button>
+          <button id="progressionBtn" class="secondary-btn">ÁREA DE UPGRADES</button>
+          <button id="settingsBtn" class="secondary-btn">CONFIGURAÇÕES</button>
+        </div>
+        <div class="save-summary">
+          <span>CRISTAIS <b id="menuCrystals">0</b></span>
+          <span>MELHOR PONTUAÇÃO <b id="bestScore">0</b></span>
+          <span>VITÓRIAS <b id="wins">0</b></span>
+        </div>
+      </div>
+      <div class="controls-hint">
+        <b>CONTROLES</b>
+        <span>A/D ou ←/→ mover</span>
+        <span>W/ESPAÇO pular</span>
+        <span>SHIFT esquivar</span>
+        <span>P/ESC pausar</span>
+      </div>
+    </section>
+
+    <section id="loadoutScreen" class="screen">
+      <div class="panel wide-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">PREPARE SUA EXPEDIÇÃO</p>
+            <h2>Seleção de equipamento</h2>
+          </div>
+          <button class="close-btn" data-target="menuScreen">×</button>
+        </div>
+
+        <h3>Personagem</h3>
+        <div id="characterCards" class="card-grid"></div>
+
+        <h3>Arma inicial</h3>
+        <div id="weaponCards" class="card-grid"></div>
+
+        <h3>Mundo</h3>
+        <div id="worldCards" class="card-grid worlds"></div>
+
+        <div class="footer-actions">
+          <button id="startRunBtn" class="primary-btn">ENTRAR NA PRIMEIRA SALA</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="upgradeScreen" class="screen">
+      <div class="panel wide-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">PROGRESSÃO PERMANENTE</p>
+            <h2>Núcleo da Fronteira</h2>
+          </div>
+          <div class="currency-badge">CRISTAIS <b id="upgradeCrystals">0</b></div>
+          <button class="close-btn" data-target="menuScreen">×</button>
+        </div>
+        <div id="upgradeCards" class="upgrade-grid"></div>
+        <div class="reset-area">
+          <button id="resetSaveBtn" class="danger-btn">APAGAR PROGRESSÃO</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="settingsScreen" class="screen">
+      <div class="panel small-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">PREFERÊNCIAS</p>
+            <h2>Configurações</h2>
+          </div>
+          <button class="close-btn" data-target="menuScreen">×</button>
+        </div>
+        <label class="setting-row">
+          <span>Volume geral</span>
+          <input id="volumeRange" type="range" min="0" max="1" step="0.05" value="0.45" />
+        </label>
+        <label class="setting-row">
+          <span>Partículas</span>
+          <input id="particlesToggle" type="checkbox" checked />
+        </label>
+        <label class="setting-row">
+          <span>Tremor de câmera</span>
+          <input id="shakeToggle" type="checkbox" checked />
+        </label>
+        <div class="key-list">
+          <div><kbd>A</kbd><kbd>D</kbd><span>Movimentação</span></div>
+          <div><kbd>W</kbd><kbd>ESPAÇO</kbd><span>Salto / salto duplo</span></div>
+          <div><kbd>SHIFT</kbd><span>Esquiva</span></div>
+          <div><kbd>P</kbd><kbd>ESC</kbd><span>Pausa</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bonusScreen" class="screen modal-screen">
+      <div class="panel bonus-panel">
+        <p class="eyebrow">SALA CONCLUÍDA</p>
+        <h2>Escolha uma melhoria</h2>
+        <p class="subtitle">Os bônus duram até o fim desta partida.</p>
+        <div id="bonusChoices" class="bonus-grid"></div>
+      </div>
+    </section>
+
+    <section id="pauseScreen" class="screen modal-screen">
+      <div class="panel small-panel centered">
+        <p class="eyebrow">PARTIDA PAUSADA</p>
+        <h2>Respire e planeje</h2>
+        <button id="resumeBtn" class="primary-btn">CONTINUAR</button>
+        <button id="quitRunBtn" class="danger-btn">ABANDONAR PARTIDA</button>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen">
+      <div class="panel result-panel centered">
+        <p id="resultEyebrow" class="eyebrow">EXPEDIÇÃO ENCERRADA</p>
+        <h2 id="resultTitle">Você foi derrotado</h2>
+        <p id="resultSummary" class="subtitle"></p>
+        <div class="result-stats">
+          <div><span>PONTUAÇÃO</span><b id="resultScore">0</b></div>
+          <div><span>MOEDAS DA PARTIDA</span><b id="resultCoins">0</b></div>
+          <div><span>CRISTAIS MANTIDOS</span><b id="resultCrystals">0</b></div>
+          <div><span>SALAS LIMPAS</span><b id="resultRooms">0</b></div>
+        </div>
+        <div id="resultBonuses" class="result-bonuses"></div>
+        <div class="footer-actions">
+          <button id="retryBtn" class="primary-btn">JOGAR NOVAMENTE</button>
+          <button id="resultMenuBtn" class="secondary-btn">VOLTAR AO MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="toast" class="toast"></div>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
