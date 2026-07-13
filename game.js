@@ -126,6 +126,8 @@
     { id: 'poison', name: 'Veneno', icon: '☠️', desc: 'Tiros aplicam veneno acumulável.', tags: ['Dano contínuo'], weight: 7, apply: p => p.poisonStacks += 1 },
     { id: 'freeze', name: 'Gelo', icon: '❄️', desc: 'Tiros reduzem a velocidade dos inimigos.', tags: ['Controle'], weight: 7, apply: p => p.freezePower += .18 },
     { id: 'shock', name: 'Choque', icon: '⚡', desc: 'Acertos saltam dano elétrico para inimigos próximos.', tags: ['Área'], weight: 6, apply: p => p.shockStacks += 1 },
+    { id: 'focusedShot', name: 'Tiro Concentrado', icon: '🎯', desc: '+1% de dano por acerto seguido no mesmo inimigo.', tags: ['Dano'], weight: 7, apply: p => p.focusedShot += 1 },
+    { id: 'vampireShot', name: 'Tiro Vampiro', icon: '🩸', desc: 'Acertos recuperam um pouco de vida.', tags: ['Cura'], weight: 6, apply: p => p.vampireShot += 1 },
     { id: 'homing', name: 'Tiros Buscadores', icon: '🎯', desc: 'Projéteis curvam levemente até alvos próximos.', tags: ['Projétil'], weight: 6, apply: p => p.homing += 1 },
     { id: 'bigBullets', name: 'Balas Maiores', icon: '🔵', desc: 'Aumenta o tamanho e contato dos projéteis.', tags: ['Projétil'], weight: 7, apply: p => p.projectileScale += .35 },
     { id: 'crit', name: 'Crítico', icon: '✴️', desc: '+8% de chance crítica e +20% de dano crítico.', tags: ['Crítico'], weight: 7, apply: p => { p.critChance += .08; p.critMul += .2; } },
@@ -159,6 +161,8 @@
   let platforms = [];
   let roomDecor = [];
   let rewardStatue = null;
+  let chests = [];
+  let healthPickups = [];
   let audioCtx = null;
   let toastTimer = null;
 
@@ -253,6 +257,8 @@
       this.deathExplosion = 0;
       this.toxicBurst = 0;
       this.shockStacks = 0;
+      this.focusedShot = 0;
+      this.vampireShot = 0;
       this.homing = 0;
       this.projectileScale = 1;
       this.revives = 0;
@@ -496,6 +502,7 @@
       this.hidden = type === 'burrower';
       this.visibleTimer = this.hidden ? rand(.8, 1.6) : 0;
       this.lastHitBy = null;
+      this.focusHits = 0;
     }
 
     get center() { return { x: this.x + this.w / 2, y: this.y + this.h / 2 }; }
@@ -762,6 +769,10 @@
       for (const p of platforms) {
         if (pointInRect(this.x, this.y, p)) { this.dead = true; spawnBurst(this.x, this.y, '#c7fff4', 4, 70); return; }
       }
+      for (const chest of chests) {
+        if (chest.dead) continue;
+        if (circleRect(this, chest)) { hitChest(chest, this.damage); this.dead = true; return; }
+      }
       for (const e of enemies) {
         if (e.dead || e.hidden || this.hit.has(e)) continue;
         if (circleRect(this, e)) { this.hitEnemy(e); if (this.dead) return; }
@@ -770,10 +781,16 @@
     hitEnemy(e) {
       this.hit.add(e);
       let amount = this.damage;
+      if (this.owner.focusedShot) amount *= 1 + e.focusHits * .01 * this.owner.focusedShot;
       if (e.hp / e.maxHp < .35) amount *= 1 + this.owner.executeMul;
       const critical = Math.random() < this.owner.critChance;
       if (critical) amount *= this.owner.critMul;
       e.takeDamage(amount, this, critical);
+      if (this.owner.focusedShot) e.focusHits += this.owner.focusedShot;
+      if (this.owner.vampireShot) {
+        const heal = Math.max(1, amount * .025 * this.owner.vampireShot);
+        this.owner.hp = Math.min(this.owner.maxHp, this.owner.hp + heal);
+      }
       if (this.owner.poisonStacks) e.poison += this.owner.poisonStacks;
       if (this.owner.freezePower) e.slow = clamp(e.slow + this.owner.freezePower, 0, .72);
       if (this.owner.explosionRadius) areaDamage(this.x, this.y, this.owner.explosionRadius, amount * this.owner.explosionMul, true, e);
@@ -816,7 +833,7 @@
 
   function chooseTarget(player) {
     const source = player.center;
-    return enemies
+    const enemyTarget = enemies
       .filter(e => !e.dead && !e.hidden && dist(source, e.center) <= player.weapon.range && lineOfSight(source, e.center))
       .map(e => {
         const d = dist(source, e.center);
@@ -824,7 +841,11 @@
         const facingBonus = Math.sign(e.center.x-source.x) === player.facing ? 28 : 0;
         return { e, score: d - danger - facingBonus };
       })
-      .sort((a,b) => a.score-b.score)[0]?.e || null;
+      .sort((a,b) => a.score-b.score)[0]?.e;
+    if (enemyTarget) return enemyTarget;
+    return chests
+      .filter(c => !c.dead && dist(source, c.center) <= player.weapon.range && lineOfSight(source, c.center))
+      .sort((a,b) => dist(source,a.center)-dist(source,b.center))[0] || null;
   }
 
   function areaDamage(x, y, radius, damage, affectsEnemies, excluded) {
@@ -848,6 +869,35 @@
       origin = next;
       damage *= .72;
     }
+  }
+
+  function spawnHealthPickup(x, y) {
+    healthPickups.push({ x, y, r: 13, heal: 28, life: 18 });
+    spawnBurst(x, y, '#76ff9f', 18, 180);
+  }
+
+  function hitChest(chest, damage) {
+    chest.hp -= damage;
+    spawnBurst(chest.x + chest.w/2, chest.y + chest.h/2, '#d99a45', 6, 90);
+    damageTexts.push({ x: chest.x + chest.w/2, y: chest.y, text: `-${Math.round(damage)}`, color: '#ffd08a', life: .55, size: 14 });
+    if (chest.hp <= 0) {
+      chest.dead = true;
+      spawnHealthPickup(chest.x + chest.w/2, chest.y + chest.h/2);
+    }
+  }
+
+  function updateHealthPickups(dt) {
+    for (const h of healthPickups) {
+      h.life -= dt;
+      h.y += Math.sin(performance.now()/180 + h.x) * dt * 5;
+      if (dist(h, run.player.center) < h.r + 24) {
+        run.player.hp = Math.min(run.player.maxHp, run.player.hp + h.heal);
+        damageTexts.push({ x: run.player.x + run.player.w/2, y: run.player.y, text: `+${h.heal}`, color: '#76ff9f', life: .7, size: 18 });
+        spawnBurst(h.x, h.y, '#76ff9f', 14, 160);
+        h.life = 0;
+      }
+    }
+    healthPickups = healthPickups.filter(h => h.life > 0);
   }
 
   function clearEnemyAttacks() {
@@ -901,6 +951,8 @@
     platforms = [{x:0,y:H-70,w:W,h:90}];
     hazards = [];
     roomDecor = [];
+    chests = [];
+    healthPickups = [];
     const layouts = [
       [{x:190,y:520,w:190,h:24},{x:465,y:430,w:210,h:24},{x:790,y:520,w:190,h:24},{x:1010,y:370,w:170,h:24}],
       [{x:130,y:430,w:210,h:24},{x:430,y:540,w:180,h:24},{x:700,y:390,w:220,h:24},{x:1030,y:500,w:170,h:24}],
@@ -916,6 +968,18 @@
       if (run.world.id==='lava') hazards.push({type:'lavaPool',x:560,y:H-83,w:150,h:18,damage:13});
       if (run.world.id==='snow') hazards.push({type:'iceFloor',x:340,y:H-75,w:220,h:12,damage:0});
       if (run.world.id==='desert') hazards.push({type:'quicksand',x:610,y:H-78,w:200,h:18,damage:5});
+      const chestCount = Math.random() < .55 ? 1 + (Math.random() < .22 ? 1 : 0) : 0;
+      for (let i=0; i<chestCount; i++) {
+        const platform = pick(platforms);
+        const w = 44, h = 34;
+        const minX = Math.max(platform.x + 18, 250);
+        const maxX = Math.min(platform.x + platform.w - w - 18, W - 120);
+        if (maxX > minX) {
+          const x = rand(minX, maxX);
+          const hp = 45 + roomIndex * 4;
+          chests.push({ x, y: platform.y - h, w, h, hp, maxHp: hp, dead: false, get center() { return { x: this.x + this.w/2, y: this.y + this.h/2 }; } });
+        }
+      }
     }
   }
 
@@ -1007,6 +1071,7 @@
   function chooseBonus(bonus) {
     if (!isBonusAvailable(bonus)) return;
     bonus.apply(run.player); run.bonuses.push(bonus);
+    rewardStatue = null;
     updateBuildPanel(); hideScreens(); gameState='playing';
     run.pendingLevelUps = Math.max(0, run.pendingLevelUps - 1);
     if (run.pendingLevelUps > 0) presentBonuses();
@@ -1096,7 +1161,7 @@
     enemies.forEach(e=>e.update(dt));
     projectiles.forEach(p=>p.update(dt));
     projectiles=projectiles.filter(p=>!p.dead);
-    updateEnemyProjectiles(dt); updateHazards(dt);
+    updateEnemyProjectiles(dt); updateHazards(dt); updateHealthPickups(dt);
     particles.forEach(p=>{p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=180*dt;p.vx*=Math.pow(.12,dt);});
     particles=particles.filter(p=>p.life>0);
     damageTexts.forEach(t=>{t.life-=dt;t.y-=36*dt;}); damageTexts=damageTexts.filter(t=>t.life>0);
@@ -1165,6 +1230,32 @@
     ctx.textAlign = 'left';
   }
 
+  function drawChestsAndPickups() {
+    for (const chest of chests) {
+      if (chest.dead) continue;
+      ctx.fillStyle = '#7a4a24';
+      roundRect(ctx, chest.x, chest.y, chest.w, chest.h, 6, true);
+      ctx.fillStyle = '#d99a45';
+      ctx.fillRect(chest.x + 4, chest.y + 8, chest.w - 8, 7);
+      ctx.fillStyle = '#ffe08a';
+      roundRect(ctx, chest.x + chest.w/2 - 5, chest.y + 13, 10, 10, 3, true);
+      const ratio = clamp(chest.hp / chest.maxHp, 0, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(chest.x, chest.y - 7, chest.w, 4);
+      ctx.fillStyle = '#76ff9f'; ctx.fillRect(chest.x, chest.y - 7, chest.w * ratio, 4);
+    }
+    for (const h of healthPickups) {
+      ctx.fillStyle = '#76ff9f';
+      ctx.shadowColor = '#76ff9f'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#073b22';
+      ctx.font = '900 15px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('+', h.x, h.y + 5);
+      ctx.textAlign = 'left';
+    }
+  }
+
   function exitDoorRect() { return {x:W-46,y:H-190,w:38,h:120}; }
 
   function playerAtExitDoor() {
@@ -1211,7 +1302,7 @@
     const sx=save.settings.shake?rand(-camera.shake,camera.shake):0;
     const sy=save.settings.shake?rand(-camera.shake,camera.shake):0;
     ctx.translate(sx,sy);
-    drawBackground();drawPlatforms();drawRewardStatue();drawDoors();drawHazards();
+    drawBackground();drawPlatforms();drawRewardStatue();drawChestsAndPickups();drawDoors();drawHazards();
     enemies.forEach(e=>e.draw());
     enemyProjectiles.forEach(p=>{ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=12;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;});
     projectiles.forEach(p=>p.draw());
