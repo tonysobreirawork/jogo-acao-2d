@@ -845,6 +845,10 @@
         if (chest.dead) continue;
         if (circleRect(this, chest)) { hitChest(chest, this.damage); this.dead = true; return; }
       }
+      for (const chest of chests) {
+        if (chest.dead) continue;
+        if (circleRect(this, chest)) { hitChest(chest, this.damage); this.dead = true; return; }
+      }
       for (const e of enemies) {
         if (e.dead || e.hidden || this.hit.has(e)) continue;
         if (circleRect(this, e)) { this.hitEnemy(e); if (this.dead) return; }
